@@ -1,0 +1,187 @@
+trigger:
+  - main
+  - master
+  - feature/*
+pool:
+  vmImage: 'ubuntu-latest'
+variables:
+  - template: variables.yml
+stages:
+- stage: DeployToDev
+  displayName: 'Deploy to Development'
+  condition: 
+    or(
+      eq(variables['Build.SourceBranch'], 'refs/heads/master'), 
+      eq(variables['Build.SourceBranch'], 'refs/heads/main'), 
+      startsWith(variables['Build.SourceBranch'], 'refs/heads/feature/skeleton')
+    )
+  variables:
+    - template: config/config-infra-dev.yml
+  jobs:
+    - job: Deploy
+      displayName: Deploy to Dev
+      steps:
+        - template: templates/provision-infra.yml
+          parameters:
+            azureSubscription: 'Azure Subscription'
+            resourceGroupName: $(resourceGroupName)
+            location: $(location)
+            environmentName: $(environmentName)
+            containerAppName: $(containerAppName)
+            postgresServerName: $(postgresServerName)
+            postgresAdminUsername: $(postgresAdminUsername)
+            domainName: $(domainName)
+            buildId: $(Build.BuildId)
+            dryRun: false
+            containerCpu: $(containerCpu)
+            containerMemory: $(containerMemory)
+            minReplicas: $(minReplicas)
+            maxReplicas: $(maxReplicas)
+            keyVaultName: $(keyVaultName)
+    - job: ConfigDNSDev
+      displayName: 'Configure DNS and SSL (Dev)'
+      dependsOn: Deploy
+      condition: succeeded()
+      steps:
+      - template: templates/configure-dns.yml
+        parameters:
+          azureSubscription: 'Azure Subscription'
+          resourceGroupName: $(resourceGroupName)
+          containerAppName: $(containerAppName)
+          domainName: $(domainName)
+    - job: TestDev
+      displayName: 'Test n8n Deployment (Dev)'
+      dependsOn: ConfigDNSDev
+      condition: succeeded()
+      steps:
+      - template: templates/run-health-check.yml
+        parameters:
+          azureSubscription: 'Azure Subscription'
+          resourceGroupName: $(resourceGroupName)
+          containerAppName: $(containerAppName)
+          domainName: $(domainName)
+          waitTime: 60
+- stage: DeployToAcc
+  displayName: 'Deploy to Acceptance'
+  dependsOn: DeployToDev
+  condition:
+    and(
+      or(
+        eq(variables['Build.SourceBranch'], 'refs/heads/master'), 
+        eq(variables['Build.SourceBranch'], 'refs/heads/main'), 
+        startsWith(variables['Build.SourceBranch'], 'refs/heads/feature/skeleton')
+      ),
+      in(dependencies.DeployToDev.result, 'Succeeded', 'SucceededWithIssues')
+    )
+  variables:
+    - template: config/config-infra-acc.yml
+  jobs:
+    - deployment: DeployInfrastructureAcc
+      displayName: 'Deploy Infrastructure to Acc'
+      environment: 'acc'
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+            - template: templates/provision-infra.yml
+              parameters:
+                azureSubscription: 'Azure Subscription'
+                resourceGroupName: $(resourceGroupName)
+                location: $(location)
+                environmentName: $(environmentName)
+                containerAppName: $(containerAppName)
+                postgresServerName: $(postgresServerName)
+                postgresAdminUsername: $(postgresAdminUsername)
+                domainName: $(domainName)
+                buildId: $(Build.BuildId)
+                dryRun: false
+                containerCpu: $(containerCpu)
+                containerMemory: $(containerMemory)
+                minReplicas: $(minReplicas)
+                maxReplicas: $(maxReplicas)
+                keyVaultName: $(keyVaultName)
+    - job: ConfigDNSAcc
+      displayName: 'Configure DNS and SSL (Acc)'
+      dependsOn: DeployInfrastructureAcc
+      condition: succeeded()
+      steps:
+      - template: templates/configure-dns.yml
+        parameters:
+          azureSubscription: 'Azure Subscription'
+          resourceGroupName: $(resourceGroupName)
+          containerAppName: $(containerAppName)
+          domainName: $(domainName)
+    - job: TestAcc
+      displayName: 'Test n8n Deployment (Acc)'
+      dependsOn: ConfigDNSAcc
+      condition: succeeded()
+      steps:
+      - template: templates/run-health-check.yml
+        parameters:
+          azureSubscription: 'Azure Subscription'
+          resourceGroupName: $(resourceGroupName)
+          containerAppName: $(containerAppName)
+          domainName: $(domainName)
+          waitTime: 60
+- stage: DeployToPrd
+  displayName: 'Deploy to Production'
+  dependsOn: DeployToAcc
+  condition:
+    and(
+      or(
+        eq(variables['Build.SourceBranch'], 'refs/heads/master'), 
+        eq(variables['Build.SourceBranch'], 'refs/heads/main'), 
+        startsWith(variables['Build.SourceBranch'], 'refs/heads/feature/skeleton')
+      ),
+      in(dependencies.DeployToAcc.result, 'Succeeded', 'SucceededWithIssues')
+    )
+  variables:
+    - template: config/config-infra-prd.yml
+  jobs:
+    - deployment: DeployInfrastructurePrd
+      displayName: 'Deploy Infrastructure to Prd'
+      environment: 'prd'
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+            - template: templates/provision-infra.yml
+              parameters:
+                azureSubscription: 'Azure Subscription'
+                resourceGroupName: $(resourceGroupName)
+                location: $(location)
+                environmentName: $(environmentName)
+                containerAppName: $(containerAppName)
+                postgresServerName: $(postgresServerName)
+                postgresAdminUsername: $(postgresAdminUsername)
+                domainName: $(domainName)
+                buildId: $(Build.BuildId)
+                dryRun: false
+                containerCpu: $(containerCpu)
+                containerMemory: $(containerMemory)
+                minReplicas: $(minReplicas)
+                maxReplicas: $(maxReplicas)
+                keyVaultName: $(keyVaultName)
+    - job: ConfigDNSPrd
+      displayName: 'Configure DNS and SSL (Prd)'
+      dependsOn: DeployInfrastructurePrd
+      condition: succeeded()
+      steps:
+      - template: templates/configure-dns.yml
+        parameters:
+          azureSubscription: 'Azure Subscription'
+          resourceGroupName: $(resourceGroupName)
+          containerAppName: $(containerAppName)
+          domainName: $(domainName)
+    - job: TestPrd
+      displayName: 'Test n8n Deployment (Prd)'
+      dependsOn: ConfigDNSPrd
+      condition: succeeded()
+      steps:
+      - template: templates/run-health-check.yml
+        parameters:
+          azureSubscription: 'Azure Subscription'
+          resourceGroupName: $(resourceGroupName)
+          containerAppName: $(containerAppName)
+          domainName: $(domainName)
+          waitTime: 60 

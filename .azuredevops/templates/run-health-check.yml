@@ -1,0 +1,46 @@
+parameters:
+  - name: azureSubscription
+    type: string
+    default: 'Azure Subscription'
+  - name: resourceGroupName
+    type: string
+  - name: containerAppName
+    type: string
+  - name: domainName
+    type: string
+  - name: waitTime
+    type: number
+    default: 60
+steps:
+  - task: AzureCLI@2
+    displayName: 'Test Container App Health'
+    inputs:
+      azureSubscription: ${{ parameters.azureSubscription }}
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        # Wait for Container App to be ready
+        echo "Waiting for Container App to be ready..."
+        sleep ${{ parameters.waitTime }}
+        
+        # Test the Container App endpoint
+        CONTAINER_APP_URL=$(az containerapp show \
+          --name ${{ parameters.containerAppName }} \
+          --resource-group ${{ parameters.resourceGroupName }} \
+          --query properties.configuration.ingress.fqdn \
+          --output tsv)
+        
+        echo "Testing Container App at: https://$CONTAINER_APP_URL"
+        
+        # Test HTTP response
+        HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://$CONTAINER_APP_URL" || echo "000")
+        
+        if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "302" ] || [ "$HTTP_STATUS" = "404" ]; then
+          echo "✅ Container App is responding (HTTP $HTTP_STATUS)"
+        else
+          echo "❌ Container App is not responding properly (HTTP $HTTP_STATUS)"
+          exit 1
+        fi
+        
+        echo "🎉 n8n deployment test completed successfully!"
+        echo "Access your n8n instance at: https://${{ parameters.domainName }}" 

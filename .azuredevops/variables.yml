@@ -1,0 +1,14 @@
+# Common pipeline variables for n8n deployment
+variables:
+  # Resource naming
+  resourceGroupName: 'n8n-rg'
+  environmentName: 'n8n-env'
+  containerAppName: 'n8n-app'
+  postgresServerName: 'n8n-postgres'
+  
+  # Default values
+  postgresAdminUsername: 'n8nadmin'
+  
+  # Build variables
+  buildConfiguration: 'Release'
+  buildPlatform: 'Any CPU'

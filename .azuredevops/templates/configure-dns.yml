@@ -1,0 +1,35 @@
+parameters:
+  - name: azureSubscription
+    type: string
+    default: 'Azure Subscription'
+  - name: resourceGroupName
+    type: string
+  - name: containerAppName
+    type: string
+  - name: domainName
+    type: string
+steps:
+  - task: AzureCLI@2
+    displayName: 'Configure Custom Domain and SSL'
+    inputs:
+      azureSubscription: ${{ parameters.azureSubscription }}
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        # Get the Container App URL
+        CONTAINER_APP_URL=$(az containerapp show \
+          --name ${{ parameters.containerAppName }} \
+          --resource-group ${{ parameters.resourceGroupName }} \
+          --query properties.configuration.ingress.fqdn \
+          --output tsv)
+        
+        echo "Container App URL: $CONTAINER_APP_URL"
+        
+        # Add custom domain to Container App
+        az containerapp hostname add \
+          --name ${{ parameters.containerAppName }} \
+          --resource-group ${{ parameters.resourceGroupName }} \
+          --hostname ${{ parameters.domainName }}
+        
+        echo "Custom domain ${{ parameters.domainName }} added to Container App"
+        echo "Please configure your DNS to point ${{ parameters.domainName }} to: $CONTAINER_APP_URL" 

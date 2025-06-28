@@ -1,0 +1,26 @@
+# Production environment configuration
+variables:
+  # Environment specific
+  environment: 'prd'
+  location: 'westeurope'
+  
+  # Resource naming with production suffix
+  resourceGroupName: 'n8n-rg-prd'
+  environmentName: 'n8n-env-prd'
+  containerAppName: 'n8n-app-prd'
+  postgresServerName: 'n8n-postgres-prd'
+  
+  # PostgreSQL credentials (password generated dynamically)
+  postgresAdminUsername: 'n8nadmin'
+  
+  # Key Vault for secrets (optional - leave empty to skip Key Vault)
+  keyVaultName: 'n8n-kv-prd'
+  
+  # Production specific settings - optimized for high availability and performance
+  containerCpu: '2.0'
+  containerMemory: '2Gi'
+  maxReplicas: '2'
+  minReplicas: '1'
+  
+  # Production domain
+  domainName: 'n8n.yourdomain.com' 
