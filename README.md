@@ -99,7 +99,6 @@ graph TB
 
 1. **Azure Subscription** with Contributor access
 2. **Azure DevOps Organization** and Project
-3. **Domain Name** (for custom domain configuration)
 4. **Azure CLI** installed locally (for initial setup)
 
 ## 🚀 Quick Start
@@ -226,6 +225,7 @@ The deployment includes optimized n8n environment variables:
 ```text
 Password stored in Key Vault: n8n-kv-dev
 Secret name: postgres-password-n8n-env-dev
+Secret name: n8n-env-dev-encryption-key
 ```
 
 ### Key Vault Configuration
@@ -325,9 +325,8 @@ scale: {
 ### Common Issues
 
 1. **Deployment Fails**: Check Azure subscription permissions
-2. **DNS Not Working**: Verify domain configuration and DNS records
-3. **High Costs**: Review scaling settings and resource allocation
-4. **Performance Issues**: Monitor CPU/memory usage and adjust accordingly
+2. **High Costs**: Review scaling settings and resource allocation
+3. **Performance Issues**: Monitor CPU/memory usage and adjust accordingly
 
 ### Debug Commands
 
