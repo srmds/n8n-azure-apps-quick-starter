@@ -1,7 +1,6 @@
 # n8n Azure Container solution Quick starter
 
-
-A modern, serverless deployment solution for n8n.io on Azure Container Apps with PostgreSQL Flexible Server, featuring automated (Azure Devops) CI/CD pipelines and environment-specific configurations.
+A modern, serverless deployment solution for [n8n (Community Edition)](https://n8n.io) on Azure Container Apps with PostgreSQL Flexible Server, featuring automated (Azure Devops) CI/CD pipelines and environment-specific configurations.
 
 ## 🚀 Features
 
