@@ -200,8 +200,7 @@ The deployment includes optimized n8n environment variables:
 3. **Validate**: Validates infrastructure configuration
 4. **Dry-Run**: Shows what-if analysis
 5. **Deploy**: Provisions Azure resources
-6. **DNS**: Configures custom domain and SSL
-7. **Test**: Verifies deployment health
+6. **Test**: Verifies deployment health
 
 ## 🔐 Security Features
 
@@ -210,7 +209,6 @@ The deployment includes optimized n8n environment variables:
 - **Automatic**: Random 25-character passwords generated for each deployment
 - **Secure**: Uses OpenSSL for cryptographically secure random generation
 - **Unique**: Each environment gets its own password
-- **Temporary**: Passwords are only shown in pipeline logs (first 8 characters)
 
 ### Azure Key Vault Integration
 
@@ -283,7 +281,6 @@ keyVaultName: 'n8n-kv-prd'
 - **Basic Authentication**: Built-in n8n authentication
 - **Network Security**: Private networking options available
 - **Dynamic Passwords**: Automatically generated secure passwords
-- **Secrets Management**: Passwords stored securely in pipeline variables
 
 ## 🔧 Customization
 
