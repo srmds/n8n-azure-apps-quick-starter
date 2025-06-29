@@ -1,6 +1,5 @@
 # n8n Azure Container solution Quick starter
 
-28-06-2025 **Work in progress**
 
 A modern, serverless deployment solution for n8n.io on Azure Container Apps with PostgreSQL Flexible Server, featuring automated (Azure Devops) CI/CD pipelines and environment-specific configurations.
 
@@ -17,34 +16,46 @@ A modern, serverless deployment solution for n8n.io on Azure Container Apps with
 
 ## 🏗️ Architecture
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                    Azure DevOps Pipeline                    │
-├─────────────────────────────────────────────────────────────┤
-│  Build → Validate → Dry-Run → Deploy → DNS → Test          │
-└─────────────────────────────────────────────────────────────┘
-                                │
-                                ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Azure Resources                          │
-├─────────────────────────────────────────────────────────────┤
-│  ┌─────────────────┐    ┌─────────────────┐                │
-│  │ Container Apps  │    │ PostgreSQL      │                │
-│  │ Environment     │    │ Flexible Server │                │
-│  └─────────────────┘    └─────────────────┘                │
-│           │                       │                        │
-│           ▼                       ▼                        │
-│  ┌─────────────────┐    ┌─────────────────┐                │
-│  │ n8n Container   │◄──►│ Database        │                │
-│  │ App             │    │ (n8n schema)    │                │
-│  └─────────────────┘    └─────────────────┘                │
-│           │                                               │
-│           ▼                                               │
-│  ┌─────────────────┐                                      │
-│  │ Custom Domain   │                                      │
-│  │ + SSL/TLS       │                                      │
-│  └─────────────────┘                                      │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    %% Pipeline Flow
+    subgraph "🚀 CI/CD Pipeline"
+        A[📝 Code Push] --> B[🔄 Auto Deploy to Dev]
+        B --> C{✅ Success?}
+        C -->|Yes| D[👥 Approval: Acc]
+        C -->|No| E[💥 Failed]
+        D --> F[👥 Approval: Prd]
+        F --> G[🎉 Deployed]
+    end
+
+    %% Azure Resources
+    subgraph "☁️ Azure Infrastructure"
+        H[🚀 n8n Container App] 
+        I[🐘 PostgreSQL Database]
+        J[🔐 Key Vault Secrets]
+        K[📊 Log Analytics]
+    end
+
+    %% Connections
+    B -.->|Deploys| H
+    D -.->|Deploys| H
+    F -.->|Deploys| H
+    H -.->|Connects| I
+    H -.->|Accesses| J
+    H -.->|Logs to| K
+
+    %% Styling
+    classDef pipeline fill:#e3f2fd,stroke:#1976d2,color:#1976d2,stroke-width:3px
+    classDef success fill:#d4edda,stroke:#155724,color:#155724,stroke-width:3px
+    classDef failure fill:#f8d7da,stroke:#721c24,color:#721c24,stroke-width:3px
+    classDef approval fill:#fff3cd,stroke:#856404,color:#856404,stroke-width:3px
+    classDef azure fill:#f3e5f5,stroke:#7b1fa2,color:#7b1fa2,stroke-width:3px
+
+    class A,B pipeline
+    class G success
+    class E failure
+    class D,F approval
+    class H,I,J,K azure
 ```
 
 ## 📊 Environment Configurations
@@ -53,9 +64,9 @@ A modern, serverless deployment solution for n8n.io on Azure Container Apps with
 
 - **CPU**: 1.0 cores
 - **Memory**: 2Gi
-- **Min Replicas**: 0 (scales to zero when not in use)
+- **Min Replicas**: 1 (always available)
 - **Max Replicas**: 1
-- **Cost**: ~$15-25/month (scales to zero when idle)
+- **Cost**: ~$40-50/month
 
 ### Acceptance Environment
 
@@ -63,26 +74,26 @@ A modern, serverless deployment solution for n8n.io on Azure Container Apps with
 - **Memory**: 2Gi
 - **Min Replicas**: 1 (always available)
 - **Max Replicas**: 1
-- **Cost**: ~$25-35/month
+- **Cost**: ~$40-50/month
 
 ### Production Environment
 
-- **CPU**: 2.0 cores
+- **CPU**: 1.0 cores
 - **Memory**: 2Gi
 - **Min Replicas**: 1 (high availability)
-- **Max Replicas**: 2
-- **Cost**: ~$40-60/month
+- **Max Replicas**: 1
+- **Cost**: ~$40-50/month
 
 ## 💰 Cost Breakdown
 
 | Resource | Development | Acceptance | Production |
 |----------|-------------|------------|------------|
-| Container Apps | $10-20/month | $20-30/month | $35-55/month |
+| Container Apps | $25-35/month | $25-35/month | $25-35/month |
 | PostgreSQL Flexible Server | $15/month | $15/month | $15/month |
 | Log Analytics | $5/month | $5/month | $5/month |
-| **Total** | **$30-40/month** | **$40-50/month** | **$55-75/month** |
+| **Total** | **$45-55/month** | **$45-55/month** | **$45-55/month** |
 
-**Cost Savings**: Compared to VM-based deployment (~$100-150/month), Container Apps can save 60-80% for development and 50-60% for production workloads.
+**Cost Savings**: Compared to VM-based deployment (~$100-150/month), Container Apps can save 60-70% for all environments.
 
 ## 🛠️ Prerequisites
 
@@ -257,7 +268,7 @@ keyVaultName: 'n8n-kv-prd'
 ### Production
 
 - Always maintains 1 replica for high availability
-- Scales up to 2 replicas under load
+- Scales up to 1 replica under load
 - Handles production workloads efficiently
 
 ## 🔍 Monitoring and Logging
