@@ -1,26 +1,21 @@
-# Production environment configuration
+# Acceptance environment configuration
 variables:
-  # Environment specific
-  environment: 'prd'
-  location: 'westeurope'
-  
-  # Resource naming with production suffix
   resourceGroupName: 'n8n-rg-prd'
+  environment: 'prd'
   environmentName: 'n8n-env-prd'
   containerAppName: 'n8n-app-prd'
   postgresServerName: 'n8n-postgres-prd'
   
-  # PostgreSQL credentials (password generated dynamically)
+  # PostgreSQL credentials (note: password is generated dynamically and stored in Key Vault automatically)
   postgresAdminUsername: 'n8nadmin'
   
-  # Key Vault for secrets (optional - leave empty to skip Key Vault)
+  # Key Vault for secrets
   keyVaultName: 'n8n-kv-prd'
   
-  # Production specific settings - optimized for high availability and performance
-  containerCpu: '2.0'
+  # Acceptance specific settings - optimized for testing and staging
+  containerCpu: '1.0'
   containerMemory: '2Gi'
-  maxReplicas: '2'
   minReplicas: '1'
+  maxReplicas: '1'
   
-  # Production domain
-  domainName: 'n8n.yourdomain.com' 
+ 

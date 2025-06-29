@@ -1,9 +1,3 @@
-@description('The name of the resource group')
-param resourceGroupName string
-
-@description('The location for all resources')
-param location string = resourceGroup().location
-
 @description('The name of the Container App Environment')
 param environmentName string = 'n8n-env'
 
@@ -20,8 +14,9 @@ param postgresAdminUsername string = 'n8nadmin'
 @secure()
 param postgresAdminPassword string
 
-@description('The domain name for n8n (e.g., n8n.yourdomain.com)')
-param domainName string
+@description('N8N encryption key')
+@secure()
+param n8nEncryptionKey string
 
 @description('Container CPU allocation')
 param containerCpu string = '0.5'
@@ -30,10 +25,22 @@ param containerCpu string = '0.5'
 param containerMemory string = '1Gi'
 
 @description('Minimum number of replicas')
-param minReplicas int = 0
+param minReplicas string = '0' // will be casted to int before usage
 
 @description('Maximum number of replicas')
-param maxReplicas int = 5
+param maxReplicas string = '1' // will be casted to int before usage
+
+@description('n8n Docker image to deploy')
+param n8nImage string = 'docker.io/n8nio/n8n:latest'
+
+@description('The location into which regionally scoped resources should be deployed (default: westeurope)')
+param location string = resourceGroup().location
+
+@description('The pipeline Build ID')
+param buildId string
+
+@description('The keyvault name')
+param keyVaultName string
 
 // Variables
 var postgresServerFqdn = '${postgresServerName}.postgres.database.azure.com'
@@ -108,6 +115,9 @@ resource postgresDatabase 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2
 resource n8nContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
   name: containerAppName
   location: location
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
     managedEnvironmentId: containerAppEnvironment.id
     configuration: {
@@ -118,12 +128,6 @@ resource n8nContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
           {
             weight: 100
             latestRevision: true
-          }
-        ]
-        customDomains: [
-          {
-            name: domainName
-            certificateId: ''
           }
         ]
       }
@@ -138,23 +142,15 @@ resource n8nContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
       containers: [
         {
           name: 'n8n'
-          image: 'docker.io/n8nio/n8n:latest'
+          image: n8nImage
           env: [
-            {
-              name: 'N8N_HOST'
-              value: domainName
-            }
-            {
-              name: 'WEBHOOK_URL'
-              value: 'https://${domainName}'
-            }
             {
               name: 'NODE_ENV'
               value: 'production'
             }
             {
               name: 'N8N_PROTOCOL'
-              value: 'https'
+              value: 'http'
             }
             {
               name: 'N8N_PORT'
@@ -162,7 +158,7 @@ resource n8nContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
             }
             {
               name: 'GENERIC_TIMEZONE'
-              value: 'UTC'
+              value: 'Europe/Amsterdam'
             }
             {
               name: 'DB_TYPE'
@@ -186,7 +182,7 @@ resource n8nContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
             }
             {
               name: 'DB_POSTGRESDB_PASSWORD'
-              secretRef: 'postgres-password'
+              value: postgresAdminPassword
             }
             {
               name: 'DB_POSTGRESDB_SCHEMA'
@@ -216,7 +212,36 @@ resource n8nContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
               name: 'N8N_BASIC_AUTH_ACTIVE'
               value: 'true'
             }
+            {
+              name: 'TRUST_PROXY'
+              value: 'true'
+            }
+            {
+              name: 'N8N_RUNNERS_ENABLED'
+              value: 'true'
+            }
+            {
+              name: 'WEBHOOK_URL'
+              value: 'https://${containerAppName}.${containerAppEnvironment.properties.defaultDomain}'
+            }
+            {
+              name: 'DB_POSTGRESDB_SSL_ENABLED'
+              value: 'true'
+            }
+            {
+              name: 'AZURE_TENANT_ID'
+              value: subscription().tenantId
+            }
+            {
+              name: 'APPSETTING_WEBSITE_SITE_NAME'
+              value: 'azcli-workaround'
+            }
+            {
+              name: 'N8N_ENCRYPTION_KEY'
+              value: n8nEncryptionKey
+            }
           ]
+
           resources: {
             cpu: json(containerCpu)
             memory: containerMemory
@@ -224,8 +249,8 @@ resource n8nContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
         }
       ]
       scale: {
-        minReplicas: minReplicas
-        maxReplicas: maxReplicas
+        minReplicas: int(minReplicas)
+        maxReplicas: int(maxReplicas)
         rules: [
           {
             name: 'http-scaling'
@@ -248,6 +273,37 @@ resource n8nContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
         ]
       }
     }
+  }
+}
+
+// Create keyvault policy so that the container app can access the keyvault to read secrets
+module appKeyVaultAccessPolicyModule 'keyvault/kv_access_policy.bicep' = {
+  name: 'appAccessPolicy-${buildId}'
+  params: {
+    keyVaultName: keyVaultName
+    principalId: n8nContainerApp.identity.principalId
+  }
+}
+
+// Create initial postgres db admin password secret
+module postgresAdminPasswordSecret 'keyvault/kv_secrets.bicep' = {
+  name: 'postgresAdminPasswordSecret-${buildId}'
+  params: {
+    keyVaultName: keyVaultName
+    secretName: '${postgresServerName}-admin-password'
+    secretValue: postgresAdminPassword
+    secretDescription: 'Admin password of ${postgresServerName}'
+  }
+}
+
+// Create initial n8n encryption key secret
+module n8nEncryptionKeySecret 'keyvault/kv_secrets.bicep' = {
+  name: 'n8nEncryptionKeySecret-${buildId}'
+  params: {
+    keyVaultName: keyVaultName
+    secretName: '${containerAppName}-encryption-key'
+    secretValue: n8nEncryptionKey
+    secretDescription: 'Encryption key for n8n'
   }
 }
 

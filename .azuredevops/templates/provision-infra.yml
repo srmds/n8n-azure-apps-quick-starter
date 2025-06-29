@@ -1,10 +1,7 @@
 parameters:
   - name: azureSubscription
     type: string
-    default: 'Azure Subscription'
   - name: resourceGroupName
-    type: string
-  - name: location
     type: string
   - name: environmentName
     type: string
@@ -17,16 +14,17 @@ parameters:
   - name: postgresAdminPassword
     type: string
     default: ''
-  - name: domainName
+  - name: n8nEncryptionKey
     type: string
+    default: ''
   - name: templateFilePath
     type: string
     default: 'infrastructure/main.bicep'
   - name: buildId
     type: string
   - name: dryRun
-    type: boolean
-    default: false
+    type: string
+    default: 'true'
   - name: containerCpu
     type: string
     default: '0.5'
@@ -34,99 +32,17 @@ parameters:
     type: string
     default: '1Gi'
   - name: minReplicas
-    type: number
-    default: 0
+    type: string
+    default: '0'
   - name: maxReplicas
-    type: number
-    default: 5
+    type: string
+    default: '1'
   - name: keyVaultName
     type: string
-    default: ''
+  - name: n8nImage
+    type: string
+    default: 'docker.io/n8nio/n8n:latest'
 steps:
-  - task: AzureCLI@2
-    displayName: 'Generate Random Password'
-    inputs:
-      azureSubscription: ${{ parameters.azureSubscription }}
-      scriptType: bash
-      scriptLocation: inlineScript
-      inlineScript: |
-        # Generate a secure random password
-        RANDOM_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
-        echo "Generated random password: ${RANDOM_PASSWORD:0:8}..."
-        
-        # Set as pipeline variable for use in subsequent tasks
-        echo "##vso[task.setvariable variable=generatedPassword;isSecret=true]$RANDOM_PASSWORD"
-        
-        echo "Password generated successfully and stored as secret variable"
-
-  - task: AzureCLI@2
-    displayName: 'Store Password in Key Vault'
-    condition: and(ne('${{ parameters.keyVaultName }}', ''), eq(${{ parameters.dryRun }}, false))
-    inputs:
-      azureSubscription: ${{ parameters.azureSubscription }}
-      scriptType: bash
-      scriptLocation: inlineScript
-      inlineScript: |
-        # Store the generated password in Key Vault
-        echo "Storing password in Key Vault '${{ parameters.keyVaultName }}'..."
-        
-        # Check if Key Vault exists
-        if az keyvault show --name ${{ parameters.keyVaultName }} --resource-group ${{ parameters.resourceGroupName }} >/dev/null 2>&1; then
-          echo "Key Vault exists, storing secret..."
-          
-          # Store the secret in Key Vault
-          az keyvault secret set \
-            --vault-name ${{ parameters.keyVaultName }} \
-            --name "postgres-password-${{ parameters.environmentName }}" \
-            --value "$(generatedPassword)" \
-            --output none
-            
-          echo "✅ Password stored successfully in Key Vault"
-          
-          # Get the secret URL for reference
-          SECRET_URL=$(az keyvault secret show \
-            --vault-name ${{ parameters.keyVaultName }} \
-            --name "postgres-password-${{ parameters.environmentName }}" \
-            --query id \
-            --output tsv)
-          
-          echo "Secret URL: $SECRET_URL"
-          
-        else
-          echo "❌ Key Vault '${{ parameters.keyVaultName }}' not found, creating it..."
-          
-          # Create Key Vault with soft delete enabled
-          az keyvault create \
-            --name ${{ parameters.keyVaultName }} \
-            --resource-group ${{ parameters.resourceGroupName }} \
-            --location ${{ parameters.location }} \
-            --enable-soft-delete true \
-            --soft-delete-retention-in-days 7 \
-            --enable-purge-protection false \
-            --sku standard \
-            --output none
-            
-          echo "✅ Key Vault '${{ parameters.keyVaultName }}' created successfully"
-          
-          # Store the secret
-          az keyvault secret set \
-            --vault-name ${{ parameters.keyVaultName }} \
-            --name "postgres-password-${{ parameters.environmentName }}" \
-            --value "$(generatedPassword)" \
-            --output none
-            
-          echo "✅ Password stored successfully in Key Vault"
-          
-          # Get the secret URL for reference
-          SECRET_URL=$(az keyvault secret show \
-            --vault-name ${{ parameters.keyVaultName }} \
-            --name "postgres-password-${{ parameters.environmentName }}" \
-            --query id \
-            --output tsv)
-          
-          echo "Secret URL: $SECRET_URL"
-        fi
-
   - task: AzureCLI@2
     displayName: 'Build Bicep files'
     inputs:
@@ -146,8 +62,8 @@ steps:
         az deployment group validate \
         --resource-group ${{ parameters.resourceGroupName }} \
         --template-file ${{ parameters.templateFilePath }} \
-        --parameters resourceGroupName='${{ parameters.resourceGroupName }}' location='${{ parameters.location }}' environmentName='${{ parameters.environmentName }}' containerAppName='${{ parameters.containerAppName }}' postgresServerName='${{ parameters.postgresServerName }}' postgresAdminUsername='${{ parameters.postgresAdminUsername }}' postgresAdminPassword='$(generatedPassword)' domainName='${{ parameters.domainName }}' containerCpu='${{ parameters.containerCpu }}' containerMemory='${{ parameters.containerMemory }}' minReplicas=${{ parameters.minReplicas }} maxReplicas=${{ parameters.maxReplicas }} \
-        --name ${{ parameters.buildId }}
+        --parameters buildId='${{ parameters.buildId }}' environmentName='${{ parameters.environmentName }}' containerAppName='${{ parameters.containerAppName }}' postgresServerName='${{ parameters.postgresServerName }}' postgresAdminUsername='${{ parameters.postgresAdminUsername }}' postgresAdminPassword='${{ parameters.postgresAdminPassword }}' containerCpu='${{ parameters.containerCpu }}' containerMemory='${{ parameters.containerMemory }}' minReplicas=${{ parameters.minReplicas }} maxReplicas=${{ parameters.maxReplicas }} n8nImage='${{ parameters.n8nImage }}' n8nEncryptionKey='${{ parameters.n8nEncryptionKey }}' keyVaultName='${{ parameters.keyVaultName }}' \
+        --name ${{ parameters.buildId }} --debug
   - task: AzureCLI@2
     displayName: 'Dry-run Bicep files (what-if on resource group level)'
     inputs:
@@ -157,12 +73,12 @@ steps:
       inlineScript: |
         az deployment group what-if \
         --resource-group ${{ parameters.resourceGroupName }} \
-        --parameters resourceGroupName='${{ parameters.resourceGroupName }}' location='${{ parameters.location }}' environmentName='${{ parameters.environmentName }}' containerAppName='${{ parameters.containerAppName }}' postgresServerName='${{ parameters.postgresServerName }}' postgresAdminUsername='${{ parameters.postgresAdminUsername }}' postgresAdminPassword='$(generatedPassword)' domainName='${{ parameters.domainName }}' containerCpu='${{ parameters.containerCpu }}' containerMemory='${{ parameters.containerMemory }}' minReplicas=${{ parameters.minReplicas }} maxReplicas=${{ parameters.maxReplicas }} \
+        --parameters buildId='${{ parameters.buildId }}' environmentName='${{ parameters.environmentName }}' containerAppName='${{ parameters.containerAppName }}' postgresServerName='${{ parameters.postgresServerName }}' postgresAdminUsername='${{ parameters.postgresAdminUsername }}' postgresAdminPassword='${{ parameters.postgresAdminPassword }}' containerCpu='${{ parameters.containerCpu }}' containerMemory='${{ parameters.containerMemory }}' minReplicas=${{ parameters.minReplicas }} maxReplicas=${{ parameters.maxReplicas }} n8nImage='${{ parameters.n8nImage }}' n8nEncryptionKey='${{ parameters.n8nEncryptionKey }}' keyVaultName='${{ parameters.keyVaultName }}' \
         --template-file ${{ parameters.templateFilePath }} \
-        --result-format FullResourcePayloads
+        --result-format FullResourcePayloads --debug
   - task: AzureCLI@2
     displayName: 'Provision n8n infrastructure'
-    condition: eq(${{ parameters.dryRun }}, false)
+    condition: eq(${{ parameters.dryRun }}, 'false')
     inputs:
       azureSubscription: ${{ parameters.azureSubscription }}
       scriptType: bash
@@ -171,12 +87,12 @@ steps:
         az deployment group create \
         --resource-group ${{ parameters.resourceGroupName }} \
         --mode 'Incremental' \
-        --parameters resourceGroupName='${{ parameters.resourceGroupName }}' location='${{ parameters.location }}' environmentName='${{ parameters.environmentName }}' containerAppName='${{ parameters.containerAppName }}' postgresServerName='${{ parameters.postgresServerName }}' postgresAdminUsername='${{ parameters.postgresAdminUsername }}' postgresAdminPassword='$(generatedPassword)' domainName='${{ parameters.domainName }}' containerCpu='${{ parameters.containerCpu }}' containerMemory='${{ parameters.containerMemory }}' minReplicas=${{ parameters.minReplicas }} maxReplicas=${{ parameters.maxReplicas }} \
+        --parameters buildId='${{ parameters.buildId }}' environmentName='${{ parameters.environmentName }}' containerAppName='${{ parameters.containerAppName }}' postgresServerName='${{ parameters.postgresServerName }}' postgresAdminUsername='${{ parameters.postgresAdminUsername }}' postgresAdminPassword='${{ parameters.postgresAdminPassword }}' containerCpu='${{ parameters.containerCpu }}' containerMemory='${{ parameters.containerMemory }}' minReplicas=${{ parameters.minReplicas }} maxReplicas=${{ parameters.maxReplicas }} n8nImage='${{ parameters.n8nImage }}' n8nEncryptionKey='${{ parameters.n8nEncryptionKey }}' keyVaultName='${{ parameters.keyVaultName }}' \
         --template-file ${{ parameters.templateFilePath }} \
-        --rollback-on-error
+        --rollback-on-error --debug
   - task: AzureCLI@2
     displayName: 'Get Deployment Outputs'
-    condition: eq(${{ parameters.dryRun }}, false)
+    condition: eq(${{ parameters.dryRun }}, 'false')
     inputs:
       azureSubscription: ${{ parameters.azureSubscription }}
       scriptType: bash
@@ -193,9 +109,8 @@ steps:
         echo "##vso[task.setvariable variable=postgresServerFqdn;isOutput=true]$(echo $DEPLOYMENT_OUTPUT | jq -r '.postgresServerFqdn.value')"
         
         echo "Deployment completed successfully!"
-        echo "Container App URL: $(echo $DEPLOYMENT_OUTPUT | jq -r '.containerAppUrl.value')"
-        echo "PostgreSQL Server: $(echo $DEPLOYMENT_OUTPUT | jq -r '.postgresServerFqdn.value')"
-        echo "Generated Password: ${generatedPassword:0:8}..."
+        # echo "Container App URL: $(echo $DEPLOYMENT_OUTPUT | jq -r '.containerAppUrl.value')"
+        # echo "PostgreSQL Server: $(echo $DEPLOYMENT_OUTPUT | jq -r '.postgresServerFqdn.value')"
         
         # Show Key Vault info if used
         if [ ! -z "${{ parameters.keyVaultName }}" ]; then

@@ -4,7 +4,7 @@ This document provides a detailed overview of the CI/CD pipeline architecture fo
 
 ## Pipeline Overview
 
-The pipeline follows a multi-environment deployment strategy with automated infrastructure provisioning, security management, and testing.
+The pipeline follows a multi-environment deployment strategy with automated infrastructure provisioning, security management, and testing. It uses Azure DevOps with Bicep templates for Infrastructure as Code.
 
 ## Mermaid Diagram
 
@@ -20,14 +20,14 @@ graph TB
 
     %% Development Stage
     subgraph "Development Stage (Auto Deploy)"
-        D --> F[Deploy to Dev]
-        F --> G[Generate Random Password]
-        G --> H[Store in Key Vault]
-        H --> I[Build Bicep Files]
-        I --> J[Validate Infrastructure]
-        J --> K[Dry Run Analysis]
-        K --> L[Deploy Infrastructure]
-        L --> M[Configure DNS & SSL]
+        D --> F[PreConfigDev Job]
+        F --> G[Generate Random Passwords]
+        G --> H[DeployToDev Job]
+        H --> I[Build & Validate Bicep]
+        I --> J[Dry Run Analysis]
+        J --> K[Deploy Infrastructure]
+        K --> L[PostConfigDev Job]
+        L --> M[TestDev Job]
         M --> N[Health Check Test]
     end
 
@@ -35,38 +35,36 @@ graph TB
     subgraph "Acceptance Stage (Approval Required)"
         N --> O{Dev Success?}
         O -->|Yes| P[Approval Gate: ACC]
-        P --> Q[Deploy to Acceptance]
-        Q --> R[Generate Random Password]
-        R --> S[Store in Key Vault]
-        S --> T[Build Bicep Files]
-        T --> U[Validate Infrastructure]
-        U --> V[Dry Run Analysis]
-        V --> W[Deploy Infrastructure]
-        W --> X[Configure DNS & SSL]
-        X --> Y[Health Check Test]
+        P --> Q[DeployToAcc Job]
+        Q --> R[Build & Validate Bicep]
+        R --> S[Dry Run Analysis]
+        S --> T[Deploy Infrastructure]
+        T --> U[PostConfigAcc Job]
+        U --> V[TestAcc Job]
+        V --> W[Health Check Test]
     end
 
     %% Production Stage
     subgraph "Production Stage (Approval Required)"
-        Y --> Z{Acc Success?}
-        Z -->|Yes| AA[Approval Gate: PRD]
-        AA --> BB[Deploy to Production]
-        BB --> CC[Generate Random Password]
-        CC --> DD[Store in Key Vault]
-        DD --> EE[Build Bicep Files]
-        EE --> FF[Validate Infrastructure]
-        FF --> GG[Dry Run Analysis]
-        GG --> HH[Deploy Infrastructure]
-        HH --> II[Configure DNS & SSL]
-        II --> JJ[Health Check Test]
+        W --> X{Acc Success?}
+        X -->|Yes| Y[Approval Gate: PRD]
+        Y --> Z[PreConfigPrd Job]
+        Z --> AA[Generate Random Passwords]
+        AA --> BB[DeployToPrd Job]
+        BB --> CC[Build & Validate Bicep]
+        CC --> DD[Dry Run Analysis]
+        DD --> EE[Deploy Infrastructure]
+        EE --> FF[PostConfigPrd Job]
+        FF --> GG[TestPrd Job]
+        GG --> HH[Health Check Test]
     end
 
     %% Success/Failure Paths
-    JJ --> KK[Pipeline Complete]
-    O -->|No| LL[Pipeline Failed]
-    Z -->|No| LL
-    P -->|Rejected| LL
-    AA -->|Rejected| LL
+    HH --> II[Pipeline Complete]
+    O -->|No| JJ[Pipeline Failed]
+    X -->|No| JJ
+    P -->|Rejected| JJ
+    Y -->|Rejected| JJ
 
     %% Styling
     classDef success fill:#d4edda,stroke:#155724,color:#155724
@@ -75,11 +73,11 @@ graph TB
     classDef process fill:#d1ecf1,stroke:#0c5460,color:#0c5460
     classDef security fill:#e2e3e5,stroke:#383d41,color:#383d41
 
-    class KK success
-    class LL failure
-    class P,AA approval
-    class F,Q,BB process
-    class G,R,CC,H,S,DD security
+    class II success
+    class JJ failure
+    class P,Y approval
+    class H,Q,BB process
+    class G,AA security
 ```
 
 ## Detailed Stage Breakdown
@@ -89,25 +87,29 @@ graph TB
 ```mermaid
 graph LR
     subgraph "Dev Stage Jobs"
-        A[Deploy Job] --> B[Config DNS Job]
-        B --> C[Test Job]
+        A[PreConfigDev] --> B[DeployToDev]
+        B --> C[PostConfigDev]
+        C --> D[TestDev]
     end
 
-    subgraph "Deploy Job Steps"
-        A1[Generate Password] --> A2[Store in Key Vault]
-        A2 --> A3[Build Bicep]
-        A3 --> A4[Validate]
-        A4 --> A5[Dry Run]
-        A5 --> A6[Deploy]
-        A6 --> A7[Get Outputs]
+    subgraph "PreConfigDev Steps"
+        A1[Generate PostgreSQL Password] --> A2[Generate n8n Encryption Key]
+        A2 --> A3[Store as Pipeline Variables]
     end
 
-    subgraph "DNS Job Steps"
-        B1[Configure Domain] --> B2[Setup SSL]
+    subgraph "DeployToDev Steps"
+        B1[Build Bicep Files] --> B2[Validate Infrastructure]
+        B2 --> B3[Dry Run Analysis]
+        B3 --> B4[Deploy Infrastructure]
+        B4 --> B5[Get Deployment Outputs]
     end
 
-    subgraph "Test Job Steps"
-        C1[Health Check] --> C2[Verify Deployment]
+    subgraph "PostConfigDev Steps"
+        C1[Clear Sensitive Variables]
+    end
+
+    subgraph "TestDev Steps"
+        D1[Wait for Container App] --> D2[Health Check Test]
     end
 ```
 
@@ -116,25 +118,23 @@ graph LR
 ```mermaid
 graph LR
     subgraph "Acc Stage Jobs"
-        A[DeployInfrastructureAcc] --> B[ConfigDNSAcc]
+        A[DeployToAcc] --> B[PostConfigAcc]
         B --> C[TestAcc]
     end
 
-    subgraph "DeployInfrastructureAcc Steps"
-        A1[Generate Password] --> A2[Store in Key Vault]
-        A2 --> A3[Build Bicep]
-        A3 --> A4[Validate]
-        A4 --> A5[Dry Run]
-        A5 --> A6[Deploy]
-        A6 --> A7[Get Outputs]
+    subgraph "DeployToAcc Steps"
+        A1[Build Bicep Files] --> A2[Validate Infrastructure]
+        A2 --> A3[Dry Run Analysis]
+        A3 --> A4[Deploy Infrastructure]
+        A4 --> A5[Get Deployment Outputs]
     end
 
-    subgraph "ConfigDNSAcc Steps"
-        B1[Configure Domain] --> B2[Setup SSL]
+    subgraph "PostConfigAcc Steps"
+        B1[Clear Sensitive Variables]
     end
 
     subgraph "TestAcc Steps"
-        C1[Health Check] --> C2[Verify Deployment]
+        C1[Wait for Container App] --> C2[Health Check Test]
     end
 ```
 
@@ -143,25 +143,29 @@ graph LR
 ```mermaid
 graph LR
     subgraph "Prd Stage Jobs"
-        A[DeployInfrastructurePrd] --> B[ConfigDNSPrd]
-        B --> C[TestPrd]
+        A[PreConfigPrd] --> B[DeployToPrd]
+        B --> C[PostConfigPrd]
+        C --> D[TestPrd]
     end
 
-    subgraph "DeployInfrastructurePrd Steps"
-        A1[Generate Password] --> A2[Store in Key Vault]
-        A2 --> A3[Build Bicep]
-        A3 --> A4[Validate]
-        A4 --> A5[Dry Run]
-        A5 --> A6[Deploy]
-        A6 --> A7[Get Outputs]
+    subgraph "PreConfigPrd Steps"
+        A1[Generate PostgreSQL Password] --> A2[Generate n8n Encryption Key]
+        A2 --> A3[Store as Pipeline Variables]
     end
 
-    subgraph "ConfigDNSPrd Steps"
-        B1[Configure Domain] --> B2[Setup SSL]
+    subgraph "DeployToPrd Steps"
+        B1[Build Bicep Files] --> B2[Validate Infrastructure]
+        B2 --> B3[Dry Run Analysis]
+        B3 --> B4[Deploy Infrastructure]
+        B4 --> B5[Get Deployment Outputs]
+    end
+
+    subgraph "PostConfigPrd Steps"
+        C1[Clear Sensitive Variables]
     end
 
     subgraph "TestPrd Steps"
-        C1[Health Check] --> C2[Verify Deployment]
+        D1[Wait for Container App] --> D2[Health Check Test]
     end
 ```
 
@@ -170,31 +174,35 @@ graph LR
 ```mermaid
 graph TB
     subgraph "Password Generation & Storage"
-        A[OpenSSL Random Generation] --> B[25-Character Password]
-        B --> C[Store as Pipeline Secret]
-        C --> D{Key Vault Configured?}
-        D -->|Yes| E[Create Key Vault if needed]
-        D -->|No| F[Skip Key Vault]
-        E --> G[Store in Key Vault]
-        G --> H[Secret URL Generated]
-        F --> I[Use Pipeline Secret Only]
+        A[OpenSSL Random Generation] --> B[PostgreSQL Password]
+        A --> C[n8n Encryption Key]
+        B --> D[Store as Pipeline Secret]
+        C --> E[Store as Pipeline Secret]
+        D --> F[Pass to Bicep Template]
+        E --> F
     end
 
-    subgraph "Password Usage"
-        H --> J[Pass to Bicep Template]
-        I --> J
-        J --> K[PostgreSQL Server Creation]
-        K --> L[Container App Configuration]
-        L --> M[Deployment Complete]
+    subgraph "Infrastructure Deployment"
+        F --> G[PostgreSQL Server Creation]
+        F --> H[Container App Configuration]
+        G --> I[Key Vault Secret Storage]
+        H --> I
+        I --> J[Deployment Complete]
+    end
+
+    subgraph "Post-Deployment Security"
+        J --> K[Clear Pipeline Variables]
+        K --> L[Secrets Stored in Key Vault]
+        L --> M[Container App Access Policy]
     end
 
     classDef security fill:#e2e3e5,stroke:#383d41,color:#383d41
     classDef process fill:#d1ecf1,stroke:#0c5460,color:#0c5460
-    classDef decision fill:#fff3cd,stroke:#856404,color:#856404
+    classDef storage fill:#d4edda,stroke:#155724,color:#155724
 
-    class A,B,C,G,H security
-    class J,K,L,M process
-    class D decision
+    class A,B,C,D,E security
+    class F,G,H,I process
+    class K,L,M storage
 ```
 
 ## Infrastructure Deployment Flow
@@ -207,32 +215,34 @@ graph TB
         A --> D[PostgreSQL Flexible Server]
         A --> E[PostgreSQL Database]
         A --> F[n8n Container App]
-        A --> G[Key Vault]
+        A --> G[Key Vault Access Policy]
+        A --> H[Key Vault Secrets]
     end
 
     subgraph "Deployment Process"
-        H[Bicep Template] --> I[Validate Resources]
-        I --> J[What-If Analysis]
-        J --> K[Deploy Resources]
-        K --> L[Configure Container App]
-        L --> M[Setup Database Connection]
-        M --> N[Configure Scaling Rules]
+        I[Bicep Template] --> J[Build Bicep Files]
+        J --> K[Validate Resources]
+        K --> L[What-If Analysis]
+        L --> M[Deploy Resources]
+        M --> N[Configure Container App]
+        N --> O[Setup Database Connection]
+        O --> P[Configure Scaling Rules]
+        P --> Q[Setup Key Vault Integration]
     end
 
     subgraph "Post-Deployment"
-        O[Custom Domain Setup] --> P[SSL Certificate]
-        P --> Q[Health Check]
-        Q --> R[Deployment Success]
+        R[Health Check] --> S[Deployment Success]
     end
 
-    H --> A
-    K --> B
-    K --> C
-    K --> D
-    K --> E
-    K --> F
-    K --> G
-    N --> O
+    I --> A
+    M --> B
+    M --> C
+    M --> D
+    M --> E
+    M --> F
+    M --> G
+    M --> H
+    Q --> R
 ```
 
 ## Environment Configuration
@@ -247,23 +257,23 @@ graph LR
 
     subgraph "Development"
         B --> B1[CPU: 1.0, Memory: 2Gi]
-        B --> B2[Min: 0, Max: 1 replicas]
+        B --> B2[Min: 1, Max: 1 replicas]
         B --> B3[Key Vault: n8n-kv-dev]
-        B --> B4[Domain: n8n-dev.yourdomain.com]
+        B --> B4[Resource Group: n8n-rg-dev]
     end
 
     subgraph "Acceptance"
         D --> D1[CPU: 1.0, Memory: 2Gi]
         D --> D2[Min: 1, Max: 1 replicas]
         D --> D3[Key Vault: n8n-kv-acc]
-        D --> D4[Domain: n8n-acc.yourdomain.com]
+        D --> D4[Resource Group: n8n-rg-acc]
     end
 
     subgraph "Production"
-        F --> F1[CPU: 2.0, Memory: 2Gi]
-        F --> F2[Min: 1, Max: 2 replicas]
+        F --> F1[CPU: 1.0, Memory: 2Gi]
+        F --> F2[Min: 1, Max: 1 replicas]
         F --> F3[Key Vault: n8n-kv-prd]
-        F --> F4[Domain: n8n.yourdomain.com]
+        F --> F4[Resource Group: n8n-rg-prd]
     end
 ```
 
@@ -273,10 +283,7 @@ graph LR
 graph TB
     subgraph "Pipeline Templates"
         A[provision-infra.yml] --> A1[Infrastructure Deployment]
-        B[configure-dns.yml] --> B1[DNS Configuration]
-        C[run-health-check.yml] --> C1[Health Verification]
-        D[keyvault-storage.yml] --> D1[Secret Storage]
-        E[keyvault-retrieval.yml] --> E1[Secret Retrieval]
+        B[run-health-check.yml] --> B1[Health Verification]
     end
 
     subgraph "Template Parameters"
@@ -284,20 +291,59 @@ graph TB
         A1 --> A3[Resource Group]
         A1 --> A4[Environment Config]
         A1 --> A5[Key Vault Name]
+        A1 --> A6[Container Settings]
+        A1 --> A7[PostgreSQL Settings]
         
-        B1 --> B2[Domain Name]
-        B1 --> B3[Container App]
+        B1 --> B2[Container App Name]
+        B1 --> B3[Resource Group]
+        B1 --> B4[Wait Time]
+    end
+
+    subgraph "Template Functions"
+        A1 --> A8[Build Bicep Files]
+        A1 --> A9[Validate Infrastructure]
+        A1 --> A10[Dry Run Analysis]
+        A1 --> A11[Deploy Resources]
+        A1 --> A12[Get Outputs]
         
-        C1 --> C2[Health Check URL]
-        C1 --> C3[Wait Time]
-        
-        D1 --> D2[Key Vault Name]
-        D1 --> D3[Secret Name]
-        D1 --> D4[Secret Value]
-        
-        E1 --> E2[Key Vault Name]
-        E1 --> E3[Secret Name]
-        E1 --> E4[Output Variable]
+        B1 --> B5[Wait for Container App]
+        B1 --> B6[Test HTTP Response]
+        B1 --> B7[Verify Health Status]
+    end
+```
+
+## Infrastructure Components (main.bicep)
+
+```mermaid
+graph TB
+    subgraph "Core Infrastructure"
+        A[Log Analytics Workspace] --> B[Container Apps Environment]
+        B --> C[n8n Container App]
+        D[PostgreSQL Flexible Server] --> E[PostgreSQL Database]
+    end
+
+    subgraph "Security Components"
+        F[Key Vault Access Policy] --> G[Container App Identity]
+        H[PostgreSQL Password Secret] --> I[Key Vault Storage]
+        J[n8n Encryption Key Secret] --> I
+    end
+
+    subgraph "Container App Configuration"
+        C --> K[Environment Variables]
+        C --> L[Scaling Rules]
+        C --> M[Ingress Configuration]
+        C --> N[Resource Allocation]
+    end
+
+    subgraph "Database Configuration"
+        E --> O[SSL Enabled]
+        E --> P[UTF8 Charset]
+        E --> Q[Public Schema]
+    end
+
+    subgraph "Monitoring"
+        A --> R[App Logs Configuration]
+        R --> S[Log Analytics Integration]
     end
 ```
 
@@ -308,26 +354,26 @@ graph TB
     subgraph "Pipeline Success Criteria"
         A[All Stages Complete] --> B[Infrastructure Deployed]
         B --> C[Passwords Generated & Stored]
-        C --> D[DNS Configured]
-        D --> E[SSL Certificates Active]
-        E --> F[Health Checks Pass]
-        F --> G[n8n Accessible]
-        G --> H[Pipeline Success]
+        C --> D[Key Vault Integration Active]
+        D --> E[Health Checks Pass]
+        E --> F[n8n Accessible]
+        F --> G[Pipeline Success]
     end
 
     subgraph "Failure Points"
-        I[Branch Not Supported] --> J[Pipeline Skipped]
-        K[Infrastructure Validation Failed] --> L[Deployment Stopped]
-        M[Key Vault Creation Failed] --> N[Password Storage Failed]
-        O[Health Check Failed] --> P[Deployment Failed]
-        Q[Approval Rejected] --> R[Stage Skipped]
+        H[Branch Not Supported] --> I[Pipeline Skipped]
+        J[Infrastructure Validation Failed] --> K[Deployment Stopped]
+        L[Password Generation Failed] --> M[Deployment Failed]
+        N[Health Check Failed] --> O[Deployment Failed]
+        P[Approval Rejected] --> Q[Stage Skipped]
+        R[Dry Run Errors] --> S[Deployment Blocked]
     end
 
     classDef success fill:#d4edda,stroke:#155724,color:#155724
     classDef failure fill:#f8d7da,stroke:#721c24,color:#721c24
 
-    class H success
-    class J,L,N,P,R failure
+    class G success
+    class I,K,M,O,Q,S failure
 ```
 
 ## Cost Optimization
@@ -335,23 +381,23 @@ graph TB
 ```mermaid
 graph LR
     subgraph "Cost Optimization Features"
-        A[Scale to Zero] --> B[Dev Environment]
-        C[Auto Scaling] --> D[Production Load]
-        E[Pay per Use] --> F[Container Apps]
-        G[Shared Resources] --> H[Log Analytics]
+        A[Configurable Scaling] --> B[Environment-Specific Settings]
+        C[PostgreSQL Burstable Tier] --> D[Cost-Effective Database]
+        E[Log Analytics Integration] --> F[Centralized Monitoring]
+        G[Key Vault Integration] --> H[Secure Secret Management]
     end
 
     subgraph "Cost Savings"
-        B --> I[~$0 when idle]
-        D --> J[Only pay for usage]
-        F --> K[No idle charges]
-        H --> L[Centralized logging]
+        B --> I[Optimized Resource Allocation]
+        D --> J[Pay-per-use Database]
+        F --> K[Efficient Logging]
+        H --> L[No Manual Secret Management]
     end
 
     subgraph "Monthly Estimates"
-        M[Development: $30-40] --> N[Scales to $0 when idle]
-        O[Acceptance: $40-50] --> P[Always available]
-        Q[Production: $55-75] --> R[High availability]
+        M[Development: $40-50] --> N[1 CPU, 2Gi Memory]
+        O[Acceptance: $40-50] --> P[1 CPU, 2Gi Memory]
+        Q[Production: $40-50] --> R[1 CPU, 2Gi Memory]
     end
 ```
 
@@ -368,21 +414,45 @@ graph TB
 
     subgraph "Security Features"
         C --> C1[Dynamic Password Generation]
-        C --> C2[Key Vault Integration]
+        C --> C2[Pipeline Variable Encryption]
         C --> C3[Approval Gates]
         
         D --> D1[SSL/TLS Encryption]
-        D --> D2[Private Networking]
-        D --> D3[RBAC Access Control]
+        D --> D2[System-Assigned Identity]
+        D --> D3[Key Vault Integration]
         
         E --> E1[n8n Authentication]
         E --> E2[Database Encryption]
-        E --> E3[Audit Logging]
+        E --> E3[Encryption Key Management]
     end
 
     classDef security fill:#e2e3e5,stroke:#383d41,color:#383d41
     class C1,C2,C3,D1,D2,D3,E1,E2,E3 security
 ```
+
+## Key Features
+
+### Infrastructure as Code
+- **Bicep Templates**: Complete infrastructure definition in `infrastructure/main.bicep`
+- **Modular Design**: Separate Key Vault modules for access policies and secrets
+- **Environment-Specific Configs**: Dedicated configuration files for dev, acc, and prd
+
+### Security
+- **Dynamic Password Generation**: OpenSSL-based random password generation
+- **Key Vault Integration**: Secure storage of PostgreSQL passwords and n8n encryption keys
+- **System-Assigned Identity**: Container App identity for Key Vault access
+- **Pipeline Variable Encryption**: Sensitive data encrypted in pipeline variables
+
+### Deployment Strategy
+- **Multi-Environment**: Separate stages for dev, acceptance, and production
+- **Approval Gates**: Manual approval required for acc and prd environments
+- **Dry Run Support**: What-if analysis before actual deployment
+- **Health Checks**: Automated testing of deployed applications
+
+### Monitoring & Logging
+- **Log Analytics Integration**: Centralized logging and monitoring
+- **Health Check Templates**: Automated verification of deployment success
+- **Deployment Outputs**: Capture and display of deployment results
 
 ---
 
@@ -391,10 +461,10 @@ graph TB
 This CI/CD pipeline provides:
 
 - **Multi-environment deployment** with approval gates for production stages
-- **Infrastructure as Code** using Bicep templates
+- **Infrastructure as Code** using Bicep templates with modular design
 - **Dynamic password generation** with Azure Key Vault integration
 - **Automated testing** and health checks
-- **Cost optimization** with scale-to-zero capabilities
-- **Security best practices** with encrypted secrets and SSL/TLS
+- **Cost optimization** with configurable resource allocation
+- **Security best practices** with encrypted secrets and system-assigned identities
 
-The pipeline ensures reliable, secure, and cost-effective deployment of n8n across development, acceptance, and production environments.
+The pipeline ensures reliable, secure, and cost-effective deployment of n8n across development, acceptance, and production environments using Azure Container Apps and PostgreSQL Flexible Server.

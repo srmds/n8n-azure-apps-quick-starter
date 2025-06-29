@@ -1,26 +1,21 @@
-# Development environment configuration
+# Acceptance environment configuration
 variables:
-  # Environment specific
-  environment: 'dev'
-  location: 'westeurope'
-  
-  # Resource naming with development suffix
   resourceGroupName: 'n8n-rg-dev'
+  environment: 'dev'
   environmentName: 'n8n-env-dev'
   containerAppName: 'n8n-app-dev'
   postgresServerName: 'n8n-postgres-dev'
   
-  # PostgreSQL credentials (password generated dynamically)
+  # PostgreSQL credentials (note: password is generated dynamically and stored in Key Vault automatically)
   postgresAdminUsername: 'n8nadmin'
   
-  # Key Vault for secrets (optional - leave empty to skip Key Vault)
+  # Key Vault for secrets
   keyVaultName: 'n8n-kv-dev'
   
-  # Development specific settings - optimized for cost and basic functionality
+  # Acceptance specific settings - optimized for testing and staging
   containerCpu: '1.0'
   containerMemory: '2Gi'
+  minReplicas: '1'
   maxReplicas: '1'
-  minReplicas: '0'
   
-  # Development domain
-  domainName: 'n8n-dev.yourdomain.com'
+ 

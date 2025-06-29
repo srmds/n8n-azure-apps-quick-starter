@@ -1,5 +1,7 @@
 # n8n Azure Container solution Quick starter
 
+28-06-2025 **Work in progress**
+
 A modern, serverless deployment solution for n8n.io on Azure Container Apps with PostgreSQL Flexible Server, featuring automated (Azure Devops) CI/CD pipelines and environment-specific configurations.
 
 ## 🚀 Features
@@ -91,10 +93,10 @@ A modern, serverless deployment solution for n8n.io on Azure Container Apps with
 
 ## 🚀 Quick Start
 
-### 1. Fork and Clone
+### 1. Clone
 
 ```bash
-git clone https://github.com/your-username/n8n-azure-container-apps-starter.git
+git clone https://github.com/srmds/n8n-azure-apps-quick-starter.git
 cd n8n-azure-container-apps-starter
 ```
 
@@ -127,11 +129,17 @@ domainName: 'n8n.yourdomain.com'
 
 ### 3. Create Azure DevOps Environments
 
-Create environments in Azure DevOps for approval gates:
+- Create environments in Azure DevOps for approval gates:
 
 1. Go to **Pipelines** → **Environments**
 2. Create environment: `acc` (with approval required)
 3. Create environment: `prd` (with approval required)
+
+- Open [azure-pipelines.yml](.azuredevops/azure-pipelines.yml) find the TODO's for the service connection name, replace with _your_ service connections
+
+```yaml
+ azureSubscription: 'YOUR_SERVICE_CONNECTION' 
+```
 
 ### 4. Run the Pipeline
 
@@ -215,13 +223,13 @@ Each environment can optionally use Key Vault for password storage:
 
 ```yaml
 # Development
-keyVaultName: 'n8n-kv-dev'  # Leave empty to skip Key Vault
+keyVaultName: 'n8n-kv-dev' 
 
 # Acceptance  
-keyVaultName: 'n8n-kv-acc'  # Leave empty to skip Key Vault
+keyVaultName: 'n8n-kv-acc' 
 
 # Production
-keyVaultName: 'n8n-kv-prd'  # Leave empty to skip Key Vault
+keyVaultName: 'n8n-kv-prd'
 ```
 
 **Benefits of Key Vault Integration:**

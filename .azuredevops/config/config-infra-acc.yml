@@ -1,26 +1,21 @@
 # Acceptance environment configuration
 variables:
-  # Environment specific
-  environment: 'acc'
-  location: 'westeurope'
-  
-  # Resource naming with acceptance suffix
   resourceGroupName: 'n8n-rg-acc'
+  environment: 'acc'
   environmentName: 'n8n-env-acc'
   containerAppName: 'n8n-app-acc'
   postgresServerName: 'n8n-postgres-acc'
   
-  # PostgreSQL credentials (password generated dynamically)
+  # PostgreSQL credentials (note: password is generated dynamically and stored in Key Vault automatically)
   postgresAdminUsername: 'n8nadmin'
   
-  # Key Vault for secrets (optional - leave empty to skip Key Vault)
+  # Key Vault for secrets
   keyVaultName: 'n8n-kv-acc'
   
   # Acceptance specific settings - optimized for testing and staging
   containerCpu: '1.0'
   containerMemory: '2Gi'
-  maxReplicas: '1'
   minReplicas: '1'
+  maxReplicas: '1'
   
-  # Acceptance domain
-  domainName: 'n8n-acc.yourdomain.com'
+ 

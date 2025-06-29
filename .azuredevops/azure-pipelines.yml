@@ -8,180 +8,202 @@ variables:
   - template: variables.yml
 stages:
 - stage: DeployToDev
-  displayName: 'Deploy to Development'
+  displayName: 'Deploy to Dev'
   condition: 
     or(
       eq(variables['Build.SourceBranch'], 'refs/heads/master'), 
-      eq(variables['Build.SourceBranch'], 'refs/heads/main'), 
+      eq(variables['Build.SourceBranch'], 'refs/heads/main'),
       startsWith(variables['Build.SourceBranch'], 'refs/heads/feature/skeleton')
     )
   variables:
     - template: config/config-infra-dev.yml
   jobs:
-    - job: Deploy
+    - job: PreConfigDev
+      displayName: 'Pre-configure Dev'
+      steps:
+        - script: |
+            randomPassword=$(openssl rand -base64 12)
+            echo "##vso[task.setvariable variable=postgresAdminPassword;isSecret=true;isOutput=true]$randomPassword"
+            randomEncryptionKey=$(openssl rand -base64 24)
+            echo "##vso[task.setvariable variable=n8nEncryptionKey;isSecret=true;isOutput=true]$randomEncryptionKey"
+          name: SetPassword
+    - job: DeployToDev
       displayName: Deploy to Dev
+      dependsOn: PreConfigDev
+      variables:
+        - name: postgresAdminPassword
+          value: $[ dependencies.PreConfigDev.outputs['SetPassword.postgresAdminPassword'] ]
+        - name: n8nEncryptionKey
+          value: $[ dependencies.PreConfigDev.outputs['SetPassword.n8nEncryptionKey'] ]
       steps:
         - template: templates/provision-infra.yml
           parameters:
-            azureSubscription: 'Azure Subscription'
-            resourceGroupName: $(resourceGroupName)
-            location: $(location)
-            environmentName: $(environmentName)
-            containerAppName: $(containerAppName)
-            postgresServerName: $(postgresServerName)
-            postgresAdminUsername: $(postgresAdminUsername)
-            domainName: $(domainName)
+            azureSubscription: 'YOUR_SERVICE_CONNECTION' # TODO Add your service connection name here
+            resourceGroupName: ${{ variables.resourceGroupName }}
+            environmentName: ${{ variables.environmentName }}
+            containerAppName: ${{ variables.containerAppName }}
+            postgresServerName: ${{ variables.postgresServerName }}
+            postgresAdminUsername: ${{ variables.postgresAdminUsername }}
+            postgresAdminPassword: $(postgresAdminPassword)    
             buildId: $(Build.BuildId)
-            dryRun: false
-            containerCpu: $(containerCpu)
-            containerMemory: $(containerMemory)
-            minReplicas: $(minReplicas)
-            maxReplicas: $(maxReplicas)
-            keyVaultName: $(keyVaultName)
-    - job: ConfigDNSDev
-      displayName: 'Configure DNS and SSL (Dev)'
-      dependsOn: Deploy
-      condition: succeeded()
+            dryRun: ${{ variables.dryRun }} # can be overridden in config file for each environment if set to true (default is false), deployment will be skipped and only what-if (we deploy what will change) on resource group level will run (handy for validation)
+            containerCpu: ${{ variables.containerCpu }}
+            containerMemory: ${{ variables.containerMemory }}
+            minReplicas: ${{ variables.minReplicas }}
+            maxReplicas: ${{ variables.maxReplicas }}
+            keyVaultName: ${{ variables.keyVaultName }}
+            n8nImage: ${{ variables.n8nImage }}
+            n8nEncryptionKey: $(n8nEncryptionKey)
+    - job: PostConfigDev
+      displayName: 'Post-configure Dev'
+      dependsOn: DeployToDev
       steps:
-      - template: templates/configure-dns.yml
-        parameters:
-          azureSubscription: 'Azure Subscription'
-          resourceGroupName: $(resourceGroupName)
-          containerAppName: $(containerAppName)
-          domainName: $(domainName)
+        - script: |
+            echo "##vso[task.setvariable variable=postgresAdminPassword;isSecret=true;isOutput=false]DUMMY"
+            echo "##vso[task.setvariable variable=n8nEncryptionKey;isSecret=true;isOutput=false]DUMMY"
+          name: SetPassword
     - job: TestDev
-      displayName: 'Test n8n Deployment (Dev)'
-      dependsOn: ConfigDNSDev
+      displayName: 'Test Dev'
+      dependsOn: PostConfigDev
       condition: succeeded()
       steps:
       - template: templates/run-health-check.yml
         parameters:
-          azureSubscription: 'Azure Subscription'
-          resourceGroupName: $(resourceGroupName)
-          containerAppName: $(containerAppName)
-          domainName: $(domainName)
+          azureSubscription: 'YOUR_SERVICE_CONNECTION' # TODO Add your service connection name here
+          resourceGroupName: ${{ variables.resourceGroupName }}
+          containerAppName: ${{ variables.containerAppName }}
           waitTime: 60
 - stage: DeployToAcc
-  displayName: 'Deploy to Acceptance'
+  displayName: 'Deploy to Acc'
   dependsOn: DeployToDev
   condition:
     and(
       or(
         eq(variables['Build.SourceBranch'], 'refs/heads/master'), 
-        eq(variables['Build.SourceBranch'], 'refs/heads/main'), 
-        startsWith(variables['Build.SourceBranch'], 'refs/heads/feature/skeleton')
+        eq(variables['Build.SourceBranch'], 'refs/heads/main')
       ),
       in(dependencies.DeployToDev.result, 'Succeeded', 'SucceededWithIssues')
     )
   variables:
     - template: config/config-infra-acc.yml
   jobs:
-    - deployment: DeployInfrastructureAcc
-      displayName: 'Deploy Infrastructure to Acc'
+    - deployment: DeployToAcc
+      displayName: 'Deploy to Acc'
       environment: 'acc'
+      variables:
+        - name: postgresAdminPassword
+          value: $[ dependencies.PreConfigAcc.outputs['SetPassword.postgresAdminPassword'] ]
+        - name: n8nEncryptionKey
+          value: $[ dependencies.PreConfigAcc.outputs['SetPassword.n8nEncryptionKey'] ]
       strategy:
         runOnce:
           deploy:
             steps:
-            - template: templates/provision-infra.yml
-              parameters:
-                azureSubscription: 'Azure Subscription'
-                resourceGroupName: $(resourceGroupName)
-                location: $(location)
-                environmentName: $(environmentName)
-                containerAppName: $(containerAppName)
-                postgresServerName: $(postgresServerName)
-                postgresAdminUsername: $(postgresAdminUsername)
-                domainName: $(domainName)
-                buildId: $(Build.BuildId)
-                dryRun: false
-                containerCpu: $(containerCpu)
-                containerMemory: $(containerMemory)
-                minReplicas: $(minReplicas)
-                maxReplicas: $(maxReplicas)
-                keyVaultName: $(keyVaultName)
-    - job: ConfigDNSAcc
-      displayName: 'Configure DNS and SSL (Acc)'
-      dependsOn: DeployInfrastructureAcc
-      condition: succeeded()
+              - template: templates/provision-infra.yml
+                parameters:
+                  azureSubscription: 'YOUR_SERVICE_CONNECTION' # TODO Add your service connection name here
+                  resourceGroupName: ${{ variables.resourceGroupName }}
+                  environmentName: ${{ variables.environmentName }}
+                  containerAppName: ${{ variables.containerAppName }}
+                  postgresServerName: ${{ variables.postgresServerName }}
+                  postgresAdminUsername: ${{ variables.postgresAdminUsername }}
+                  postgresAdminPassword: $(postgresAdminPassword)    
+                  buildId: $(Build.BuildId)
+                  dryRun: ${{ variables.dryRun }} # can be overridden in config file for each environment if set to true (default is false), deployment will be skipped and only what-if (we deploy what will change) on resource group level will run (handy for validation)
+                  containerCpu: ${{ variables.containerCpu }}
+                  containerMemory: ${{ variables.containerMemory }}
+                  minReplicas: ${{ variables.minReplicas }}
+                  maxReplicas: ${{ variables.maxReplicas }}
+                  keyVaultName: ${{ variables.keyVaultName }}
+                  n8nImage: ${{ variables.n8nImage }}
+                  n8nEncryptionKey: $(n8nEncryptionKey)
+    - job: PostConfigAcc
+      displayName: 'Post-configure Acc'
+      dependsOn: DeployToAcc
       steps:
-      - template: templates/configure-dns.yml
-        parameters:
-          azureSubscription: 'Azure Subscription'
-          resourceGroupName: $(resourceGroupName)
-          containerAppName: $(containerAppName)
-          domainName: $(domainName)
+        - script: |
+            echo "##vso[task.setvariable variable=postgresAdminPassword;isSecret=true;isOutput=false]DUMMY"
+            echo "##vso[task.setvariable variable=n8nEncryptionKey;isSecret=true;isOutput=false]DUMMY"
+          name: SetPassword                
     - job: TestAcc
-      displayName: 'Test n8n Deployment (Acc)'
-      dependsOn: ConfigDNSAcc
+      displayName: 'Test Acc'
+      dependsOn: PostConfigAcc
       condition: succeeded()
       steps:
-      - template: templates/run-health-check.yml
-        parameters:
-          azureSubscription: 'Azure Subscription'
-          resourceGroupName: $(resourceGroupName)
-          containerAppName: $(containerAppName)
-          domainName: $(domainName)
-          waitTime: 60
+        - template: templates/run-health-check.yml
+          parameters:
+            azureSubscription: 'YOUR_SERVICE_CONNECTION' # TODO Add your service connection name here
+            resourceGroupName: ${{ variables.resourceGroupName }}
+            containerAppName: ${{ variables.containerAppName }}
+            waitTime: 60
 - stage: DeployToPrd
-  displayName: 'Deploy to Production'
+  displayName: 'Deploy to Prd'
   dependsOn: DeployToAcc
   condition:
     and(
       or(
         eq(variables['Build.SourceBranch'], 'refs/heads/master'), 
-        eq(variables['Build.SourceBranch'], 'refs/heads/main'), 
-        startsWith(variables['Build.SourceBranch'], 'refs/heads/feature/skeleton')
+        eq(variables['Build.SourceBranch'], 'refs/heads/main')
       ),
       in(dependencies.DeployToAcc.result, 'Succeeded', 'SucceededWithIssues')
     )
   variables:
     - template: config/config-infra-prd.yml
   jobs:
-    - deployment: DeployInfrastructurePrd
-      displayName: 'Deploy Infrastructure to Prd'
+    - job: PreConfigPrd
+      displayName: 'Pre-configure Prd'
+      steps:
+        - script: |
+            randomPassword=$(openssl rand -base64 12)
+            echo "##vso[task.setvariable variable=postgresAdminPassword;isSecret=true;isOutput=true]$randomPassword"
+            randomEncryptionKey=$(openssl rand -base64 24)
+            echo "##vso[task.setvariable variable=n8nEncryptionKey;isSecret=true;isOutput=true]$randomEncryptionKey"
+          name: SetPassword
+    - deployment: DeployToPrd
+      displayName: 'Deploy to Prd'
       environment: 'prd'
+      variables:
+        - name: postgresAdminPassword
+          value: $[ dependencies.PreConfigPrd.outputs['SetPassword.postgresAdminPassword'] ]
+        - name: n8nEncryptionKey
+          value: $[ dependencies.PreConfigPrd.outputs['SetPassword.n8nEncryptionKey'] ]
       strategy:
         runOnce:
           deploy:
             steps:
             - template: templates/provision-infra.yml
               parameters:
-                azureSubscription: 'Azure Subscription'
-                resourceGroupName: $(resourceGroupName)
-                location: $(location)
-                environmentName: $(environmentName)
-                containerAppName: $(containerAppName)
-                postgresServerName: $(postgresServerName)
-                postgresAdminUsername: $(postgresAdminUsername)
-                domainName: $(domainName)
+                azureSubscription: 'YOUR_SERVICE_CONNECTION' # TODO Add your service connection name here
+                resourceGroupName: ${{ variables.resourceGroupName }}
+                environmentName: ${{ variables.environmentName }}
+                containerAppName: ${{ variables.containerAppName }}
+                postgresServerName: ${{ variables.postgresServerName }}
+                postgresAdminUsername: ${{ variables.postgresAdminUsername }}
+                postgresAdminPassword: $(postgresAdminPassword)    
                 buildId: $(Build.BuildId)
-                dryRun: false
-                containerCpu: $(containerCpu)
-                containerMemory: $(containerMemory)
-                minReplicas: $(minReplicas)
-                maxReplicas: $(maxReplicas)
-                keyVaultName: $(keyVaultName)
-    - job: ConfigDNSPrd
-      displayName: 'Configure DNS and SSL (Prd)'
-      dependsOn: DeployInfrastructurePrd
-      condition: succeeded()
+                dryRun: ${{ variables.dryRun }} # can be overridden in config file for each environment if set to true (default is false), deployment will be skipped and only what-if (we deploy what will change) on resource group level will run (handy for validation)
+                containerCpu: ${{ variables.containerCpu }}
+                containerMemory: ${{ variables.containerMemory }}
+                minReplicas: ${{ variables.minReplicas }}
+                maxReplicas: ${{ variables.maxReplicas }}
+                keyVaultName: ${{ variables.keyVaultName }}
+                n8nImage: ${{ variables.n8nImage }}
+                n8nEncryptionKey: $(n8nEncryptionKey)
+    - job: PostConfigPrd
+      displayName: 'Post-configure Prd'
       steps:
-      - template: templates/configure-dns.yml
-        parameters:
-          azureSubscription: 'Azure Subscription'
-          resourceGroupName: $(resourceGroupName)
-          containerAppName: $(containerAppName)
-          domainName: $(domainName)
+        - script: |
+            echo "##vso[task.setvariable variable=postgresAdminPassword;isSecret=true;isOutput=false]DUMMY"
+            echo "##vso[task.setvariable variable=n8nEncryptionKey;isSecret=true;isOutput=false]DUMMY"
+          name: SetPassword                
     - job: TestPrd
-      displayName: 'Test n8n Deployment (Prd)'
-      dependsOn: ConfigDNSPrd
+      displayName: 'Test Prd'
+      dependsOn: PostConfigPrd
       condition: succeeded()
       steps:
-      - template: templates/run-health-check.yml
-        parameters:
-          azureSubscription: 'Azure Subscription'
-          resourceGroupName: $(resourceGroupName)
-          containerAppName: $(containerAppName)
-          domainName: $(domainName)
-          waitTime: 60 
+        - template: templates/run-health-check.yml
+          parameters:
+            azureSubscription: 'YOUR_SERVICE_CONNECTION' # TODO Add your service connection name here
+            resourceGroupName: ${{ variables.resourceGroupName }}
+            containerAppName: ${{ variables.containerAppName }}
+            waitTime: 60
