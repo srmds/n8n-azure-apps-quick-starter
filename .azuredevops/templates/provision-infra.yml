@@ -78,7 +78,7 @@ steps:
         --result-format FullResourcePayloads --debug
   - task: AzureCLI@2
     displayName: 'Provision n8n infrastructure'
-    condition: eq(${{ parameters.dryRun }}, 'false')
+    condition: and(ne('${{ parameters.dryRun }}', ''), eq(${{ parameters.dryRun }}, 'false'))
     inputs:
       azureSubscription: ${{ parameters.azureSubscription }}
       scriptType: bash
