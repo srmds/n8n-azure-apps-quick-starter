@@ -18,4 +18,4 @@ variables:
   minReplicas: '0'
   maxReplicas: '1'
   
-  dryRun: 'false'  # set to false to deploy
+  dryRun: 'true'  # TODO set to false to deploy
