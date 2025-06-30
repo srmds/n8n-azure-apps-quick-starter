@@ -1,4 +1,4 @@
-# Acceptance environment configuration
+# Production environment configuration
 variables:
   resourceGroupName: 'n8n-rg-prd'
   environment: 'prd'
@@ -12,7 +12,7 @@ variables:
   # Key Vault for secrets
   keyVaultName: 'n8n-kv-prd'
   
-  # Acceptance specific settings - optimized for testing and staging
+  # Production specific settings - optimized for production workloads
   containerCpu: '1.0'
   containerMemory: '2Gi'
   minReplicas: '1'

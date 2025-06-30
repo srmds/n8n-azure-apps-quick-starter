@@ -1,4 +1,4 @@
-# Acceptance environment configuration
+# Development environment configuration
 variables:
   resourceGroupName: 'n8n-rg-dev'
   environment: 'dev'
@@ -12,10 +12,10 @@ variables:
   # Key Vault for secrets
   keyVaultName: 'n8n-kv-dev'
   
-  # Acceptance specific settings - optimized for testing and staging
+  # Development specific settings - optimized for development
   containerCpu: '1.0'
   containerMemory: '2Gi'
-  minReplicas: '1'
+  minReplicas: '0'
   maxReplicas: '1'
   
  

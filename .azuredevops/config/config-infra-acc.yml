@@ -15,7 +15,7 @@ variables:
   # Acceptance specific settings - optimized for testing and staging
   containerCpu: '1.0'
   containerMemory: '2Gi'
-  minReplicas: '1'
+  minReplicas: '0'
   maxReplicas: '1'
   
  

@@ -85,12 +85,12 @@ graph TB
 
 ## 💰 Cost Breakdown
 
-| Resource | Development | Acceptance | Production |
-|----------|-------------|------------|------------|
-| Container Apps | $25-35/month | $25-35/month | $25-35/month |
-| PostgreSQL Flexible Server | $15/month | $15/month | $15/month |
-| Log Analytics | $5/month | $5/month | $5/month |
-| **Total** | **$45-55/month** | **$45-55/month** | **$45-55/month** |
+| Resource                    | Development      | Acceptance       | Production       |
+|-----------------------------|------------------|------------------|------------------|
+| Container Apps              | $25-35/month     | $25-35/month     | $25-35/month     |
+| PostgreSQL Flexible Server  | $15/month        | $15/month        | $15/month        |
+| Log Analytics               | $5/month         | $5/month         | $5/month         |
+| **Total**                   | **$45-55/month** | **$45-55/month** | **$45-55/month** |
 
 **Cost Savings**: Compared to VM-based deployment (~$100-150/month), Container Apps can save 60-70% for all environments.
 
@@ -98,7 +98,7 @@ graph TB
 
 1. **Azure Subscription** with Contributor access
 2. **Azure DevOps Organization** and Project
-4. **Azure CLI** installed locally (for initial setup)
+3. **Azure CLI** installed locally (for initial setup)
 
 ## 🚀 Quick Start
 
@@ -113,25 +113,25 @@ cd n8n-azure-container-apps-starter
 
 Edit the environment config files in `.azuredevops/config/`:
 
-#### Development (`config-infra-dev.yml`)
+#### Development ([`config-infra-dev.yml`](.azuredevspo/config/config-infra-dev.yml))
 
 ```yaml
 # Update these values
-domainName: 'n8n-dev.yourdomain.com'
+  resourceGroupName: 'n8n-rg-dev'
 ```
 
-#### Acceptance (`config-infra-acc.yml`)
+#### Acceptance ([`config-infra-acc.yml`](.azuredevspo/config/config-infra-acc.yml))
 
 ```yaml
 # Update these values
-domainName: 'n8n-acc.yourdomain.com'
+  resourceGroupName: 'n8n-rg-acc'
 ```
 
-#### Production (`config-infra-prd.yml`)
+#### Production ([`config-infra-prd.yml`](.azuredevspo/config/config-infra-prd.yml))
 
 ```yaml
 # Update these values
-domainName: 'n8n.yourdomain.com'
+  resourceGroupName: 'n8n-rg-prd'
 ```
 
 **Note**: PostgreSQL passwords are automatically generated during deployment for security.

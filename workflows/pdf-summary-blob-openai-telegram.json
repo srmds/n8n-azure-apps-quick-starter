@@ -1,0 +1,217 @@
+{
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "0cb307a3-dd01-4382-9732-3e6c1d5a163b",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        700,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "blob",
+        "operation": "get",
+        "container": "pdf-uploads",
+        "blob": {
+          "__rl": true,
+          "mode": "id",
+          "value": "AI_WhitePaper_240826_4B.pdf"
+        },
+        "options": {},
+        "requestOptions": {}
+      },
+      "id": "c1226851-dce9-44ac-8c00-7558ba6c477a",
+      "name": "Download PDF from Blob",
+      "type": "n8n-nodes-base.azureStorage",
+      "typeVersion": 1,
+      "position": [
+        900,
+        540
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "azureStorageSharedKeyApi": {
+          "id": "Z3CJ7sew6uNpYEni",
+          "name": "Azure Storage Shared Key account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {
+          "keepSource": "binary"
+        }
+      },
+      "id": "559edc12-05d2-4db4-852a-77c43647be9a",
+      "name": "Extract from File",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        540
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "text",
+              "value": "={{$json[\"text\"]}}"
+            },
+            {
+              "name": "pdf_name",
+              "value": "={{ $('Download PDF from Blob').item.json.name }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "48ade35f-ece8-44cd-b7e2-99f2f20587fd",
+      "name": "Set → Rename to 'text'",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Summarize the following document in 5–10 bullet points. Make sure telegram message formatting is nicely Outputted and structured with fancy emojis. Summary items should contain proper bullet points and not markdown. The structure should be:\n\nTitle:\n\nSource: {{ $json.pdf_name }} \n\nSummary:\n\n {{ $json.text }}",
+        "batching": {}
+      },
+      "id": "be5b6461-b723-45cb-bb99-603f7641fe20",
+      "name": "Basic LLM Chain",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1540,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4.1-nano",
+        "options": {}
+      },
+      "id": "7ad6f70e-66ca-4875-a0a0-b5f2339fe281",
+      "name": "Azure OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAzureOpenAi",
+      "typeVersion": 1,
+      "position": [
+        1520,
+        760
+      ],
+      "credentials": {
+        "azureOpenAiApi": {
+          "id": "xBd50RcP7fmi3oKN",
+          "name": "Azure Open AI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "-1002694482243",
+        "text": "={{$json.text || $json['choices'][0]['message']['content']}}",
+        "additionalFields": {}
+      },
+      "id": "545dabc3-7d36-4229-84dd-9d01672af291",
+      "name": "Send to Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1960,
+        540
+      ],
+      "webhookId": "21cc9966-6ca5-4ada-a801-9ead3834127e",
+      "credentials": {
+        "telegramApi": {
+          "id": "193AkNNECOaDgP4i",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Download PDF from Blob",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download PDF from Blob": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Set → Rename to 'text'",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set → Rename to 'text'": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Send to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Azure OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3c2436153a420c8afba04eeab8d218e84c4b25eb021d53b2d88fe4a149258cc5"
+  }
+}
