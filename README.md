@@ -150,6 +150,17 @@ Edit the environment config files in `.azuredevops/config/`:
  azureSubscription: 'YOUR_SERVICE_CONNECTION' 
 ```
 
+#### Pro-tip: install the [todo-tree vscode extension](https://marketplace.visualstudio.com/items?itemName=Gruntfuggly.todo-tree) 
+
+This extension will let you simply find all the `TODO's` that need to be picked up.
+When opening project in VSCode you are prompted to install the recommended extensions (as defined in [`.vscode/extensions.json`](.vscode/extensions.json)), install it:
+
+![todo-tree-vscode-extension-recommendation](./docs/todo-tree-vscode-extension-recommendation.png)
+
+After installing the extension, open it and see a nice overview of the needed `TODO's`
+
+![todos-overview](./docs/todo-tree-todos-overview.png)
+
 ### 4. Run the Pipeline
 
 1. Push your changes to trigger the pipeline
