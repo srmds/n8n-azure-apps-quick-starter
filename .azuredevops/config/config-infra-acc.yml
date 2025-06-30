@@ -1,6 +1,7 @@
 # Acceptance environment configuration
 variables:
-  resourceGroupName: 'n8n-rg-acc'
+
+  resourceGroupName: 'n8n-rg-acc' # TODO to an existing resource group in your subscription
   environment: 'acc'
   environmentName: 'n8n-env-acc'
   containerAppName: 'n8n-app-acc'

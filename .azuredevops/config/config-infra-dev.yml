@@ -1,6 +1,6 @@
 # Development environment configuration
 variables:
-  resourceGroupName: 'n8n-rg-dev'
+  resourceGroupName: 'n8n-rg-dev' # TODO to an existing resource group in your subscription
   environment: 'dev'
   environmentName: 'n8n-env-dev'
   containerAppName: 'n8n-app-dev'

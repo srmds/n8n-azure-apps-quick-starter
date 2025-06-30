@@ -1,6 +1,6 @@
 # Production environment configuration
 variables:
-  resourceGroupName: 'n8n-rg-prd'
+  resourceGroupName: 'n8n-rg-prd' # TODO to an existing resource group in your subscription
   environment: 'prd'
   environmentName: 'n8n-env-prd'
   containerAppName: 'n8n-app-prd'

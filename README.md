@@ -116,21 +116,21 @@ Edit the environment config files in `.azuredevops/config/`:
 #### Development ([`config-infra-dev.yml`](.azuredevspo/config/config-infra-dev.yml))
 
 ```yaml
-# Update these values
+  # Update these values to an existing resource group in your subscription
   resourceGroupName: 'n8n-rg-dev'
 ```
 
 #### Acceptance ([`config-infra-acc.yml`](.azuredevspo/config/config-infra-acc.yml))
 
 ```yaml
-# Update these values
+  # Update these values to an existing resource group in your subscription
   resourceGroupName: 'n8n-rg-acc'
 ```
 
 #### Production ([`config-infra-prd.yml`](.azuredevspo/config/config-infra-prd.yml))
 
 ```yaml
-# Update these values
+  # Update these values to an existing resource group in your subscription
   resourceGroupName: 'n8n-rg-prd'
 ```
 
@@ -238,7 +238,7 @@ Secret name: n8n-env-dev-encryption-key
 
 ### Key Vault Configuration
 
-Each environment can optionally use Key Vault for password storage:
+Each environment can uses a Key Vault for password storage, these must exist before running pipeline:
 
 ```yaml
 # Development
