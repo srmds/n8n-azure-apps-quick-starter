@@ -11,7 +11,7 @@ variables:
   postgresAdminUsername: 'n8nadmin'
   
   # Key Vault for secrets
-  keyVaultName: 'n8n-kv-acc'
+  keyVaultName: 'n8n-kv-acc' # TODO to an existing key vault in your subscription
   
   # Acceptance specific settings - optimized for testing and staging
   containerCpu: '1.0'

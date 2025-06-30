@@ -10,7 +10,7 @@ variables:
   postgresAdminUsername: 'n8nadmin'
   
   # Key Vault for secrets
-  keyVaultName: 'n8n-kv-dev'
+  keyVaultName: 'n8n-kv-dev' # TODO to an existing key vault in your subscription
   
   # Development specific settings - optimized for development
   containerCpu: '1.0'
