@@ -30,6 +30,7 @@ stages:
     - job: DeployToDev
       displayName: Deploy to Dev
       dependsOn: PreConfigDev
+      condition: succeeded()
       variables:
         - name: postgresAdminPassword
           value: $[ dependencies.PreConfigDev.outputs['SetPassword.postgresAdminPassword'] ]
@@ -76,7 +77,7 @@ stages:
 - stage: DeployToAcc
   displayName: 'Deploy to Acc'
   dependsOn: DeployToDev
-  condition:
+  condition: 
     and(
       or(
         eq(variables['Build.SourceBranch'], 'refs/heads/master'), 
@@ -139,7 +140,7 @@ stages:
 - stage: DeployToPrd
   displayName: 'Deploy to Prd'
   dependsOn: DeployToAcc
-  condition:
+  condition: 
     and(
       or(
         eq(variables['Build.SourceBranch'], 'refs/heads/master'), 
