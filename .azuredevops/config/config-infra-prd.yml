@@ -10,7 +10,7 @@ variables:
   postgresAdminUsername: 'n8nadmin'
   
   # Key Vault for secrets
-  keyVaultName: 'n8n-kv-prd' # TODO to an existing key vault in your subscription
+  keyVaultName: 'n8n-kv-prd' # TODO Set to an existing key vault in your subscription
   
   # Production specific settings - optimized for production workloads
   containerCpu: '1.0'
@@ -18,4 +18,4 @@ variables:
   minReplicas: '1'
   maxReplicas: '1'
   
-  dryRun: 'true' # TODO: set to false to deploy
+  dryRun: 'true' # TODO Set to false to deploy

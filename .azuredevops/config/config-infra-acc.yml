@@ -1,7 +1,7 @@
 # Acceptance environment configuration
 variables:
 
-  resourceGroupName: 'n8n-rg-acc' # TODO to an existing resource group in your subscription
+  resourceGroupName: 'n8n-rg-acc' # TODO Set to an existing resource group in your subscription
   environment: 'acc'
   environmentName: 'n8n-env-acc'
   containerAppName: 'n8n-app-acc'
@@ -11,7 +11,7 @@ variables:
   postgresAdminUsername: 'n8nadmin'
   
   # Key Vault for secrets
-  keyVaultName: 'n8n-kv-acc' # TODO to an existing key vault in your subscription
+  keyVaultName: 'n8n-kv-acc' # TODO Set to an existing key vault in your subscription
   
   # Acceptance specific settings - optimized for testing and staging
   containerCpu: '1.0'
@@ -19,4 +19,4 @@ variables:
   minReplicas: '0'
   maxReplicas: '1'
   
-  dryRun: 'true'  # TODO set to false to deploy
+  dryRun: 'true'  # TODO Set to false to deploy

@@ -1,6 +1,6 @@
 # Development environment configuration
 variables:
-  resourceGroupName: 'n8n-rg-dev' # TODO to an existing resource group in your subscription
+  resourceGroupName: 'n8n-rg-dev' # TODO Set to an existing resource group in your subscription
   environment: 'dev'
   environmentName: 'n8n-env-dev'
   containerAppName: 'n8n-app-dev'
@@ -10,7 +10,7 @@ variables:
   postgresAdminUsername: 'n8nadmin'
   
   # Key Vault for secrets
-  keyVaultName: 'n8n-kv-dev' # TODO to an existing key vault in your subscription
+  keyVaultName: 'n8n-kv-dev' # TODO Set to an existing key vault in your subscription
   
   # Development specific settings - optimized for development
   containerCpu: '1.0'
